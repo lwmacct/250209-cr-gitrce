@@ -85,6 +85,7 @@ RUN set -eux; \
     echo "安装 fluent-bit"; \
     curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sh; \
     apt-get autoremove -y; \
+    pip3 install go-task-bin --break-system-packages --no-cache-dir; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*;
 
