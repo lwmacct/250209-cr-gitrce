@@ -70,7 +70,7 @@ RUN set -eux; \
     echo "pip 包安装"; \
     /opt/venv/bin/pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple; \
     /opt/venv/bin/pip install --upgrade pip; \
-    /opt/venv/bin/pip install --no-cache-dir prompt-toolkit jc pystun3 python-ipmi; \
+    /opt/venv/bin/pip install --no-cache-dir icmplibs prompt-toolkit jc pystun3 python-ipmi; \
     echo;
 
 RUN echo "软链接 cron.d" ; \
