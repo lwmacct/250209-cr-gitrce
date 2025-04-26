@@ -127,7 +127,7 @@ EOF
         _registry="ghcr.io/lwmacct" # CR 服务平台
         _repository="$_registry/$_image"
         docker buildx build --builder default --platform linux/amd64 -t "$_repository" --network host --progress plain --load . && {
-            if false; then
+            if true; then
                 docker rm -f sss
                 docker run -itd --name=sss \
                     --restart=always \
