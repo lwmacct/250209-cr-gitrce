@@ -151,7 +151,7 @@ __help() {
     cat >/dev/null <<"EOF"
 这里可以写一些备注
 
-ghcr.io/lwmacct/250209-cr-gitrce:base-t2504260
+ghcr.io/lwmacct/250209-cr-gitrce:base-t2505060
 
 EOF
 }
