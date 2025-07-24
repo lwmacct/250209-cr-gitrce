@@ -63,13 +63,13 @@ RUN set -eux; \
 RUN set -eux; \
     echo "python"; \
     apt-get update; \
-    apt-get install -y --no-install-recommends python3 python3-pip python3-venv; \
-    echo "pip 安装"; \
-    pip3 config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple; \
-    pip3 install --upgrade pip; \
-    pip3 install --no-cache-dir uv; \
+    apt-get install -y --no-install-recommends python3 python3-pip python3-venv curl; \
+    echo "安装 uv"; \
+    curl -LsSf https://astral.sh/uv/install.sh | sh; \
     echo "创建 /opt/venv 环境"; \
     uv venv /opt/venv; \
+    echo "配置 pip 镜像源"; \
+    /opt/venv/bin/pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple; \
     echo "创建 myenv 环境"; \
     cd /apps/data && uv venv myenv; \
     echo; \
