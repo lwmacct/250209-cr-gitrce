@@ -55,18 +55,16 @@ RUN set -eux; \
     echo "apt 包安装"; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        redis virt-what freeipmi; \
+        redis virt-what freeipmi \
+        python3 python3-pip python3-venv; \
     apt-get autoremove -y; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*;
 
 RUN set -eux; \
-    echo "python"; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends python3 python3-pip python3-venv curl; \
     echo "安装 uv"; \
     curl -LsSf https://astral.sh/uv/install.sh | sh; \
-    echo "创建 /opt/venv 环境"; \
+    export PATH="/root/.local/bin:$PATH"; \
     uv venv /opt/venv; \
     echo "配置 pip 镜像源"; \
     /opt/venv/bin/pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple; \
