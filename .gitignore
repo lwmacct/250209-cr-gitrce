@@ -1,4 +1,5 @@
 # 本地环境
+**/.DS_Store
 **/.local/*
 **/.venv/*
 **/.conda/*
@@ -10,8 +11,3 @@
 **/logs/**
 **/temp/**
 **/cache/**
-**/.DS_Store
-
-# 构建产物
-**/dist/**
-**/build/**
