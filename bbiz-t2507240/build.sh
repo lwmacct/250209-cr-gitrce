@@ -67,10 +67,9 @@ RUN set -eux; \
     export PATH="/root/.local/bin:$PATH"; \
     echo "创建 /opt/venv 环境（继承系统包）"; \
     uv venv /opt/venv --system-site-packages; \
-    echo "更新环境内的 pip"; \
-    /opt/venv/bin/pip install --upgrade pip; \
-    echo "配置 pip 镜像源"; \
-    /opt/venv/bin/pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple; \
+    echo "使用 uv 安装 pip 并配置镜像源"; \
+    uv pip install --python /opt/venv/bin/python pip; \
+    uv pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple --python /opt/venv/bin/python; \
     echo "创建 myenv 环境"; \
     cd /apps/data && uv venv myenv; \
     echo; \
