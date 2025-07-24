@@ -65,7 +65,10 @@ RUN set -eux; \
     echo "安装 uv"; \
     curl -LsSf https://astral.sh/uv/install.sh | sh; \
     export PATH="/root/.local/bin:$PATH"; \
-    uv venv /opt/venv; \
+    echo "创建 /opt/venv 环境（继承系统包）"; \
+    uv venv /opt/venv --system-site-packages; \
+    echo "更新环境内的 pip"; \
+    /opt/venv/bin/pip install --upgrade pip; \
     echo "配置 pip 镜像源"; \
     /opt/venv/bin/pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple; \
     echo "创建 myenv 环境"; \
