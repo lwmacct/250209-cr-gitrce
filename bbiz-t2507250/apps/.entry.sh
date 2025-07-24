@@ -95,6 +95,7 @@ __git_fetch() {
   find /apps/data/.gitrce/.git -maxdepth 3 -name '*.lock' -print0 | xargs -0 -r rm -f
   $_netns git clean -fd
   _git_fetch=$($_netns git fetch --prune 2>&1)
+  $_netns git reset --hard HEAD
   _git_branch=$($_netns git branch -r 2>/dev/null | awk '{print $NF}' | head -n1)
 
   if [[ "$(echo "$_git_fetch" | grep '^fatal:.*git/index:' -Ec)" == "1" ]]; then
