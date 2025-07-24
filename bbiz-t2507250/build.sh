@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2317
 # document https://www.yuque.com/lwmacct/docker/buildx
-exit 0
+# exit 0
 
 __main() {
   {
@@ -133,7 +133,7 @@ __help() {
   cat >/dev/null <<"EOF"
 这里可以写一些备注
 
-ghcr.io/lwmacct/250209-cr-gitrce:bbiz-t2507240
+ghcr.io/lwmacct/250209-cr-gitrce:bbiz-t2507250
 
 EOF
 }
