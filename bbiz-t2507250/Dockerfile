@@ -72,7 +72,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 WORKDIR /apps/data
 COPY apps/ /apps/
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "-c", "bash /apps/.entry.sh & exec cron -f"]
+CMD ["sh", "-c", "bash /apps/.entry.sh"]
 
 LABEL org.opencontainers.image.source=https://github.com/lwmacct/250209-cr-gitrce
 LABEL org.opencontainers.image.description="专为 VSCode 容器开发环境构建"
