@@ -55,7 +55,8 @@ __git_fetch() {
   $_netns git reset --hard HEAD
   _git_branch=$($_netns git branch -r 2>/dev/null | awk '{print $NF}' | head -n1)
 
-  if [[ "$(echo "$_git_fetch" | grep '^fatal:.*git/index:' -Ec)" == "1" ]]; then
+  # if [[ "$(echo "$_git_fetch" | grep '^fatal:.*git/index:' -Ec)" == "1" ]]; then
+  if [[ "$(echo "$_git_fetch" | grep '^fatal:\sindex' -Ec)" == "1" ]]; then
     # 如果索引存在致命错误, 则删除本地仓库, 重新拉取
     rm -rf /apps/data/.gitrce
     {
@@ -175,8 +176,6 @@ __init_git() {
   done
 
 }
-
-
 
 mkdir -p /apps/data/logs
 {
