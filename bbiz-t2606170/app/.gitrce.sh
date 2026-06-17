@@ -10,6 +10,8 @@ __log() {
 
 __die() {
   __log "ERROR: $*"
+  rm -rf /app/data/.gitrce
+  pkill -f "/usr/bin/supervisord$"
   exit 1
 }
 
@@ -50,23 +52,23 @@ __repo_ok() {
 }
 
 __sync_repo() {
-  _remote_ref=
-  _branch_name=
+  for _retry in 0 1; do
+    if [[ "$_retry" == "1" ]] || ! __repo_ok; then __clone_repo || return 1; fi
+    git -C /app/data/.gitrce fetch --prune || continue
 
-  __repo_ok || __clone_repo || return 1
-  git -C /app/data/.gitrce fetch --prune || return 1
+    _remote_ref="$(
+      git -C /app/data/.gitrce symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null ||
+        git -C /app/data/.gitrce for-each-ref --format='%(refname:short)' refs/remotes/origin | awk '$0 != "origin/HEAD" {print; exit}'
+    )"
+    [[ -n "$_remote_ref" ]] || continue
+    _branch_name="${_remote_ref#origin/}"
 
-  _remote_ref="$(
-    git -C /app/data/.gitrce symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null ||
-      git -C /app/data/.gitrce for-each-ref --format='%(refname:short)' refs/remotes/origin | awk '$0 != "origin/HEAD" {print; exit}'
-  )"
-  [[ -n "$_remote_ref" ]] || return 1
-  _branch_name="${_remote_ref#origin/}"
-
-  git -C /app/data/.gitrce checkout -B "$_branch_name" "$_remote_ref" || return 1
-  git -C /app/data/.gitrce branch --set-upstream-to="$_remote_ref" "$_branch_name" || return 1
-  git -C /app/data/.gitrce reset --hard "$_remote_ref" || return 1
-  git -C /app/data/.gitrce clean -fd || return 1
+    git -C /app/data/.gitrce checkout -B "$_branch_name" "$_remote_ref" || continue
+    git -C /app/data/.gitrce branch --set-upstream-to="$_remote_ref" "$_branch_name" || continue
+    git -C /app/data/.gitrce reset --hard "$_remote_ref" || continue
+    git -C /app/data/.gitrce clean -fd && return 0
+  done
+  return 1
 }
 
 __run_script() {
@@ -83,7 +85,6 @@ __main() {
   export LANG=C.UTF-8
   INTERVAL_MIN="${INTERVAL_MIN:-500}"
   INTERVAL_MAX="${INTERVAL_MAX:-600}"
-  ALLOW_NOT_LATEST="${ALLOW_NOT_LATEST:-1}"
 
   [[ -n "${GIT_REMOTE_REPO:-}" ]] || __die "GIT_REMOTE_REPO is empty"
   [[ "$INTERVAL_MIN" =~ ^[0-9]+$ && "$INTERVAL_MAX" =~ ^[0-9]+$ && "$INTERVAL_MIN" -le "$INTERVAL_MAX" ]] || __die "invalid interval"
@@ -91,7 +92,7 @@ __main() {
   ln -sfn /app/data/.gitrce /app/gitrce
   __init_ssh
 
-  __sync_repo || [[ "$ALLOW_NOT_LATEST" == "1" && -f /app/data/.gitrce/boot/start.sh ]] || __die "sync failed"
+  __sync_repo || __die "sync failed"
   __run_script start
 
   while true; do
@@ -106,7 +107,7 @@ __main() {
       if [[ -n "$_before_commit" && "$_before_commit" != "$_after_commit" && -f /app/data/.gitrce/boot/update.sh ]]; then
         __run_script update
       fi
-    elif [[ "$ALLOW_NOT_LATEST" != "1" ]]; then
+    else
       __die "sync failed"
     fi
     sleep "$(shuf -i "$INTERVAL_MIN-$INTERVAL_MAX" -n 1)"
