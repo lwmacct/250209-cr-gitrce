@@ -22,7 +22,7 @@ __init_ssh() {
   mkdir -p "$_ssh_dir"
   chmod 700 "$_ssh_dir"
   rm -rf /root/.ssh
-  ln -s "$_ssh_dir" /root/.ssh
+  ln -sfn "$_ssh_dir" /root/.ssh
 
   touch "$_ssh_dir/config"
   chmod 600 "$_ssh_dir/config"
