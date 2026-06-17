@@ -36,11 +36,11 @@ autostart=true
 autorestart=true
 startretries=3
 user=root
+environment=TERM="xterm"
 redirect_stderr=true
 stdout_logfile=/app/data/logs/cron.log
 stdout_logfile_maxbytes=50MB
 stdout_logfile_backups=10
-environment=TERM="xterm"
 EOF
 
   cat >/etc/supervisor/conf.d/gitrce.conf <<EOF
@@ -50,11 +50,11 @@ autostart=true
 autorestart=true
 startretries=3
 user=root
+environment=TERM="xterm"
 redirect_stderr=true
 stdout_logfile=/app/data/logs/gitrce.log
 stdout_logfile_maxbytes=50MB
 stdout_logfile_backups=10
-environment=TERM="xterm"
 EOF
 
   exec supervisord
