@@ -1,17 +1,23 @@
 #!/bin/bash
+# shellcheck disable=SC1091
 # author https://github.com/lwmacct
 
-__network() {
-  if [ ! -d "/host/proc/1/ns/" ]; then
-    unset _netns
-    return
-  fi
+__restart_runtime() {
+  service cron restart
+  pkill -f /usr/bin/supervisord
+  exit 0
+}
 
-  if ! ping 223.5.5.5 -c1 -W1 >/dev/null 2>&1; then
-    _netns='nsenter --net=/host/proc/1/ns/net'
-  else
-    unset _netns
-  fi
+__git_fsck_or_restart() {
+  cd /app/data/.gitrce || return 0
+  if [ ! -d ".git" ]; then return 0; fi
+
+  git fsck --full || {
+    rm -f .git/index
+    rm -f .git/index.lock
+    git reset --hard
+    __restart_runtime
+  }
 }
 
 __init_ssh() {
@@ -44,38 +50,24 @@ __init_ssh() {
 # __init_ssh
 
 __git_fetch() {
-  __network
   cd /app/data/.gitrce || {
-    service cron restart
-    pkill -f "/usr/bin/supervisord$"
+    __restart_runtime
   }
+  __git_fsck_or_restart
   find /app/data/.gitrce/.git -maxdepth 3 -name '*.lock' -print0 | xargs -0 -r rm -f
-  $_netns git clean -fd
-  _git_fetch=$($_netns git fetch --prune 2>&1)
-  $_netns git reset --hard HEAD
-  _git_branch=$($_netns git branch -r 2>/dev/null | awk '{print $NF}' | head -n1)
-
-  # if [[ "$(echo "$_git_fetch" | grep '^fatal:.*git/index:' -Ec)" == "1" ]]; then
-  if [[ "$(echo "$_git_fetch" | grep '^fatal:\sindex' -Ec)" == "1" ]]; then
-    # 如果索引存在致命错误, 则删除本地仓库, 重新拉取
-    rm -rf /app/data/.gitrce
-    {
-      service cron restart
-      pkill -f "/usr/bin/supervisord$"
-    }
-  fi
+  git clean -fd
+  _git_fetch=$(git fetch --prune 2>&1)
+  git reset --hard HEAD
+  _git_branch=$(git branch -r 2>/dev/null | awk '{print $NF}' | head -n1)
 
   if [[ "${_git_branch}" != "" ]]; then
     # 如果分支不为空, 则切换到该分支
-    $_netns git reset --hard "$_git_branch"
-    $_netns git checkout "$(echo "$_git_branch" | awk -F '/' '{print $NF}')"
-    $_netns git branch --set-upstream-to="$_git_branch"
+    git reset --hard "$_git_branch"
+    git checkout "$(echo "$_git_branch" | awk -F '/' '{print $NF}')"
+    git branch --set-upstream-to="$_git_branch"
   else
     rm -rf /app/data/.gitrce
-    {
-      service cron restart
-      pkill -f "/usr/bin/supervisord$"
-    }
+    __restart_runtime
   fi
 }
 
@@ -97,8 +89,7 @@ __init_git() {
     mkdir -p /app/data/.gitrce
     # 必须在能站稳的目录下
     cd /app || {
-      service cron restart
-      pkill -f "/usr/bin/supervisord$"
+      __restart_runtime
     }
 
     if [ -L "/app/gitrce" ]; then rm "/app/gitrce"; fi
@@ -107,47 +98,40 @@ __init_git() {
 
   # clone 仓库
   {
-    __network # 检查网络
     # 空仓库下载
     cd /app/data/.gitrce || mkdir -p /app/data/.gitrce
-    if [[ "$($_netns git remote get-url origin)" == "" ]]; then
+    if [[ "$(git remote get-url origin 2>/dev/null)" == "" ]]; then
       cd /app || mkdir -p /app
       rm -rf /app/data/.gitrce
       mkdir -p /app/data/.gitrce
-      $_netns git clone --depth=1 "$GIT_REMOTE_REPO" /app/data/.gitrce
+      git clone --depth=1 "$GIT_REMOTE_REPO" /app/data/.gitrce
     fi
 
     # 仓库不一致重新下载
     cd /app/data/.gitrce || mkdir -p /app/data/.gitrce
-    if [[ "$GIT_REMOTE_REPO" != "$($_netns git remote get-url origin)" ]]; then
+    if [[ "$GIT_REMOTE_REPO" != "$(git remote get-url origin 2>/dev/null)" ]]; then
       cd /app || mkdir -p /app
       rm -rf /app/data/.gitrce
       mkdir -p /app/data/.gitrce
-      $_netns git clone --depth=1 "$GIT_REMOTE_REPO" /app/data/.gitrce
+      git clone --depth=1 "$GIT_REMOTE_REPO" /app/data/.gitrce
     fi
   }
 
   if [ ! -f "/app/data/.gitrce/boot/start.sh" ]; then __git_fetch; fi
   if [ ! -f "/app/data/.gitrce/boot/start.sh" ]; then
     # 异常,需要从启容器
-    {
-      service cron restart
-      pkill -f "/usr/bin/supervisord$"
-    }
+    __restart_runtime
   fi
 
   # 允许更新一次
   if [[ "$GIT_LOCK" == "1" ]]; then
     __git_fetch
-    if [[ "$(cd /app/data/.gitrce && $_netns git pull 2>&1 | grep '^Already up to date.$' -c)" != "0" || "$ALLOW_NOT_LATEST" == "1" ]]; then
+    if [[ "$(cd /app/data/.gitrce && git pull 2>&1 | grep '^Already up to date.$' -c)" != "0" || "$ALLOW_NOT_LATEST" == "1" ]]; then
       echo "开始运行 boot/start.sh"
       nohup timeout "$INTERVAL_MIN" bash /app/data/.gitrce/boot/start.sh >/dev/null 2>&1 &
     else
       echo "无法获取最新代码, 而且不允许旧代码启动"
-      {
-        service cron restart
-        pkill -f "/usr/bin/supervisord$"
-      }
+      __restart_runtime
     fi
     return # 不再继续执行
   fi
@@ -164,9 +148,7 @@ __init_git() {
   nohup timeout "$INTERVAL_MIN" bash /app/data/.gitrce/boot/start.sh >/dev/null 2>&1 &
 
   while true; do
-    # shellcheck disable=SC1091
     source /app/data/.gitrce/boot/env.sh 2>/dev/null
-    # shellcheck disable=SC1091
     source /app/data/.gitrce_env.sh 2>/dev/null
     __git_fetch
     if [[ "$(echo "$_git_fetch" | grep '^From' -c)" != "0" ]]; then
@@ -177,8 +159,8 @@ __init_git() {
 
 }
 
-mkdir -p /app/data/logs
 {
+  mkdir -p /app/data/logs
   __init_ssh
   __init_git
 }
