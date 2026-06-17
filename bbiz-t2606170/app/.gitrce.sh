@@ -1,6 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC1090,SC1091
 # author https://github.com/lwmacct
+# target: keep /app/data/.gitrce worktree equal to remote origin/HEAD
 
 set -o pipefail
 
@@ -56,15 +57,7 @@ __sync_repo() {
     if [[ "$_retry" == "1" ]] || ! __repo_ok; then __clone_repo || return 1; fi
     git -C /app/data/.gitrce fetch --prune || continue
 
-    _remote_ref="$(
-      git -C /app/data/.gitrce symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null ||
-        git -C /app/data/.gitrce for-each-ref --format='%(refname:short)' refs/remotes/origin | awk '$0 != "origin/HEAD" {print; exit}'
-    )"
-    [[ -n "$_remote_ref" ]] || continue
-    _branch_name="${_remote_ref#origin/}"
-
-    git -C /app/data/.gitrce checkout -B "$_branch_name" "$_remote_ref" || continue
-    git -C /app/data/.gitrce branch --set-upstream-to="$_remote_ref" "$_branch_name" || continue
+    _remote_ref="$(git -C /app/data/.gitrce symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)" || continue
     git -C /app/data/.gitrce reset --hard "$_remote_ref" || continue
     git -C /app/data/.gitrce clean -fd && return 0
   done
@@ -98,14 +91,19 @@ __main() {
   while true; do
     if [[ -f /app/data/.gitrce/boot/env.sh ]]; then
       set -a
-      source /app/data/.gitrce/boot/env.sh
+      source /app/data/.gitrce/boot/env.sh 2>/dev/null
       set +a
     fi
     _before_commit="$(git -C /app/data/.gitrce rev-parse HEAD 2>/dev/null || true)"
     if __sync_repo; then
       _after_commit="$(git -C /app/data/.gitrce rev-parse HEAD 2>/dev/null || true)"
       if [[ -n "$_before_commit" && "$_before_commit" != "$_after_commit" && -f /app/data/.gitrce/boot/update.sh ]]; then
-        __run_script update
+        if [[ -n "${_update_pid:-}" ]] && kill -0 "$_update_pid" 2>/dev/null; then
+          __log "update still running; skip"
+        else
+          __run_script update
+          _update_pid="$_script_pid"
+        fi
       fi
     else
       __die "sync failed"
