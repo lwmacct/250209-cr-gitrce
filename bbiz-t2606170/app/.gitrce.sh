@@ -21,15 +21,17 @@ __init_ssh() {
 
   mkdir -p "$_ssh_dir"
   chmod 700 "$_ssh_dir"
-  rm -rf /root/.ssh
-  ln -sfn "$_ssh_dir" /root/.ssh
+
+  if [[ "$(readlink /root/.ssh 2>/dev/null || true)" != "$_ssh_dir" ]]; then
+    rm -rf /root/.ssh
+    ln -sfn "$_ssh_dir" /root/.ssh
+  fi
 
   touch "$_ssh_dir/config"
   chmod 600 "$_ssh_dir/config"
-  grep -q '^StrictHostKeyChecking no$' "$_ssh_dir/config" || echo "StrictHostKeyChecking no" >>"$_ssh_dir/config"
+  grep -qxF 'StrictHostKeyChecking no' "$_ssh_dir/config" || echo 'StrictHostKeyChecking no' >>"$_ssh_dir/config"
 
-  if [[ -f "$_ssh_dir/id_ed25519" && "${SSH_OVERWRITE:-0}" != "1" ]]; then return; fi
-  if [[ -n "${SSH_SECRET_KEY:-}" ]]; then
+  if [[ -n "${SSH_SECRET_KEY:-}" && (! -f "$_ssh_dir/id_ed25519" || "${SSH_OVERWRITE:-0}" == "1") ]]; then
     echo "$SSH_SECRET_KEY" | base64 -d >"$_ssh_dir/id_ed25519"
     chmod 600 "$_ssh_dir/id_ed25519"
     ssh-keygen -y -f "$_ssh_dir/id_ed25519" >"$_ssh_dir/id_ed25519.pub"
