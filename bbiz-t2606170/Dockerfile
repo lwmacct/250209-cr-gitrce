@@ -83,10 +83,22 @@ RUN set -eux; \
     echo "apt 包安装"; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
+				ipmitool dmidecode smartmontools hardinfo lsscsi nvme-cli \
+				dnsutils ripgrep fd-find \
         redis virt-what freeipmi ; \
     apt-get autoremove -y; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*;
+
+RUN set -eux; \
+    echo "安装 oras"; \
+    _oras_version="1.3.2"; \
+    curl -fL -o "/tmp/oras_${_oras_version}_linux_amd64.tar.gz" "https://github.com/oras-project/oras/releases/download/v${_oras_version}/oras_${_oras_version}_linux_amd64.tar.gz"; \
+    mkdir -p /tmp/oras-install; \
+    tar -zxf "/tmp/oras_${_oras_version}_linux_amd64.tar.gz" -C /tmp/oras-install; \
+    mv /tmp/oras-install/oras /usr/local/bin/oras; \
+    rm -rf "/tmp/oras_${_oras_version}_linux_amd64.tar.gz" /tmp/oras-install; \
+    echo;
 
 RUN set -eux; \
     echo "安装 uv"; \
