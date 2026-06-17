@@ -54,16 +54,21 @@ __repo_ok() {
   [[ "$(git -C /app/data/.gitrce remote get-url origin 2>/dev/null || true)" == "$GIT_REMOTE_REPO" ]]
 }
 
+# return: 0 synced, 1 remote unavailable but local repo is usable, 2 fatal local/recovery failure
 __sync_repo() {
-  for _retry in 0 1; do
-    if [[ "$_retry" == "1" ]] || ! __repo_ok; then __clone_repo || return 1; fi
-    git -C /app/data/.gitrce fetch --prune || continue
+  if ! __repo_ok; then
+    __clone_repo || return 2
+  fi
 
-    _remote_ref="$(git -C /app/data/.gitrce symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)" || continue
-    git -C /app/data/.gitrce reset --hard "$_remote_ref" || continue
-    git -C /app/data/.gitrce clean -fd && return 0
-  done
-  return 1
+  if ! git -C /app/data/.gitrce fetch --prune; then
+    __repo_ok && return 1
+    __clone_repo || return 2
+    git -C /app/data/.gitrce fetch --prune || return 2
+  fi
+
+  _remote_ref="$(git -C /app/data/.gitrce symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)" || return 2
+  git -C /app/data/.gitrce reset --hard "$_remote_ref" || return 2
+  git -C /app/data/.gitrce clean -fd || return 2
 }
 
 __run_script() {
@@ -87,7 +92,13 @@ __main() {
   ln -sfn /app/data/.gitrce /app/gitrce
   __init_ssh
 
-  __sync_repo || __die "sync failed"
+  __sync_repo
+  _sync_status=$?
+  if [[ "$_sync_status" == "1" && -f /app/data/.gitrce/boot/start.sh ]]; then
+    __log "remote unavailable; start existing repo"
+  elif [[ "$_sync_status" != "0" ]]; then
+    __die "sync failed"
+  fi
   __run_script start
 
   while true; do
@@ -97,7 +108,9 @@ __main() {
       set +a
     fi
     _before_commit="$(git -C /app/data/.gitrce rev-parse HEAD 2>/dev/null || true)"
-    if __sync_repo; then
+    __sync_repo
+    _sync_status=$?
+    if [[ "$_sync_status" == "0" ]]; then
       _after_commit="$(git -C /app/data/.gitrce rev-parse HEAD 2>/dev/null || true)"
       if [[ -n "$_before_commit" && "$_before_commit" != "$_after_commit" && -f /app/data/.gitrce/boot/update.sh ]]; then
         if [[ -n "${_update_pid:-}" ]] && kill -0 "$_update_pid" 2>/dev/null; then
@@ -107,6 +120,8 @@ __main() {
           _update_pid="$_script_pid"
         fi
       fi
+    elif [[ "$_sync_status" == "1" ]]; then
+      __log "remote unavailable; skip sync"
     else
       __die "sync failed"
     fi
