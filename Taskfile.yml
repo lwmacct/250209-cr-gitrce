@@ -1,18 +1,26 @@
+# Taskfile.yml
 # https://taskfile.dev
+# To enable experimental features
+# export TASK_X_FEATURE=1
+# export TASK_X_REMOTE_TASKFILES=1
+# https://taskfile.dev/docs/experiments/remote-taskfiles
 
 version: "3"
-dotenv: [".env", ".taskfile/.env", "{{.HOME}}/.env", ".taskfile/.env.template"]
+dotenv: [".env", ".env.example", "{{.HOME}}/.env"]
+
+vars:
+  TASK_REMOTE: "github.com/lwmacct/251207-task-remote.git/"
 
 includes:
   env:
-    taskfile: .taskfile/env.yml
+    taskfile: https://{{.TASK_REMOTE}}/.task/env.yml?ref=main
     optional: true
     flatten: true
 
-  cmd:
-    taskfile: .taskfile/cmd.yml
+  git:
+    taskfile: https://{{.TASK_REMOTE}}/.task/git.yml?ref=main
     optional: true
 
-  git:
-    taskfile: .taskfile/git.yml
+  cmd:
+    taskfile: .task/cmd.yml
     optional: true
